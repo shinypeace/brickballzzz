@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
+    <title>Brick Ball Masterpiece v8.0 (VK Release)</title>
+    <!-- VK Bridge -->
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #111827; /* gray-900 */
+            --bg-secondary: #1f2937; /* gray-800 */
+            --bg-tertiary: #374151; /* gray-700 */
+            --text-primary: #f9fafb; /* gray-50 */
+            --text-secondary: #d1d5db; /* gray-300 */
+            --accent: #818cf8; /* indigo-400 */
+            --accent-strong: #6366f1; /* indigo-600 */
+            --danger: #ef4444; /* red-500 */
+            --success: #22c55e; /* green-500 */
+            --canvas-bg: #1a202c;
+            --brick-stroke: #111827;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            background-color: var(--bg-primary);
+        }
+
+        .modal-content::-webkit-scrollbar { width: 8px; }
+        .modal-content::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        .modal-content::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 4px; }
+        .modal-content::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        #gameContainer {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        #canvasWrapper {
+            flex-grow: 1;
+            position: relative;
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        
+        .btn-primary {
+            transition: all 0.2s ease-out;
+            transform: scale(1);
+        }
+        .btn-primary:hover {
+            transform: scale(1.03);
+            filter: brightness(1.1);
+        }
+        .btn-primary:active {
+            transform: scale(0.97);
+            filter: brightness(0.9);
+        }
+        
+        .sound-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .sound-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-tertiary);
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        input:checked + .slider {
+            background-color: var(--accent-strong);
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen select-none">
+
+    <div id="gameWrapper" class="relative shadow-2xl overflow-hidden bg-[var(--bg-secondary)] w-full h-full max-w-[420px] max-h-[900px] aspect-[9/19.5] rounded-[40px] border-8 border-[var(--bg-primary)]">
+        <div id="gameContainer">
+            <div id="canvasWrapper">
+                <canvas id="gameCanvas"></canvas>
+            </div>
+        </div>
+        
+        <!-- UI Screens -->
+        <div id="uiScreens" class="absolute inset-0">
+            <!-- UI Элементы -->
+            <div id="gameUI" class="absolute inset-0 pointer-events-none">
+                <!-- Верхняя панель -->
+                <div id="topBar" class="absolute top-0 left-0 right-0 p-4 text-[var(--text-primary)] flex justify-between items-center transition-opacity duration-300">
+                    <div class="w-1/2 text-left">
+                        <div class="text-xs opacity-70">ШАРЫ</div>
+                        <div id="ballCount" class="text-xl font-bold">x1</div>
+                    </div>
+                    <div class="w-1/2 text-center">
+                        <div class="text-xs opacity-70">СЧЕТ</div>
+                        <div id="scoreCount" class="text-2xl font-bold">0</div>
+                    </div>
+                </div>
+                <!-- Кнопка паузы -->
+                <button id="pauseButton" class="absolute top-4 right-4 w-12 h-12 bg-[var(--bg-secondary)] bg-opacity-50 backdrop-blur-sm rounded-full flex items-center justify-center pointer-events-auto transition-opacity duration-300 btn-primary">
+                    <svg class="w-6 h-6 text-[var(--text-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </button>
+            </div>
+
+            <!-- Главное меню -->
+            <div id="mainMenu" class="absolute inset-0 bg-[var(--bg-primary)] bg-opacity-90 backdrop-blur-md flex flex-col items-center justify-center p-8 space-y-6 fade-in">
+                <div class="text-center">
+                    <h1 class="text-8xl font-black text-[var(--text-primary)] tracking-tighter" style="text-shadow: 0 4px 15px rgba(0,0,0,0.2);">BRICK</h1>
+                    <h2 class="text-8xl font-black text-[var(--accent)] tracking-tighter -mt-8" style="text-shadow: 0 4px 15px var(--accent-strong);">BALL</h2>
+                </div>
+                <div class="w-full pt-10">
+                    <button id="playButton" class="w-full bg-[var(--accent-strong)] text-white font-bold py-5 rounded-2xl text-2xl shadow-lg btn-primary">ИГРАТЬ</button>
+                </div>
+                <div class="flex w-full space-x-4">
+                    <button id="rulesButton" class="w-1/2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-bold py-4 rounded-2xl text-lg shadow-md btn-primary">Правила</button>
+                    <button id="statsButton" class="w-1/2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-bold py-4 rounded-2xl text-lg shadow-md btn-primary">Статистика</button>
+                </div>
+                <div class="absolute bottom-8 flex items-center space-x-3 text-[var(--text-secondary)]">
+                    <label class="sound-switch">
+                        <input type="checkbox" id="soundToggle">
+                        <span id="soundSlider" class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Меню выбора режима -->
+            <div id="modeSelectionMenu" class="hidden absolute inset-0 bg-[var(--bg-primary)] bg-opacity-90 backdrop-blur-md flex flex-col items-center justify-center p-8 space-y-6 fade-in">
+                 <h2 class="text-5xl font-black text-[var(--text-primary)]">ВЫБОР РЕЖИМА</h2>
+                 <div class="w-full pt-8 space-y-4">
+                     <button data-mode="classic" class="mode-select-btn w-full bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-bold py-4 rounded-2xl text-xl shadow-md btn-primary">КЛАССИКА</button>
+                     <button data-mode="kaleidoscope" class="mode-select-btn w-full bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-bold py-4 rounded-2xl text-xl shadow-md btn-primary">КАЛЕЙДОСКОП</button>
+                     <button data-mode="chaos" class="mode-select-btn w-full bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-bold py-4 rounded-2xl text-xl shadow-md btn-primary">ХАОС</button>
+                 </div>
+                 <button id="backToMenuButton" class="mt-4 bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-bold py-2 px-6 rounded-xl text-md shadow-md btn-primary">Назад</button>
+            </div>
+
+            <!-- Меню паузы -->
+            <div id="pauseMenu" class="hidden absolute inset-0 bg-[var(--bg-primary)] bg-opacity-90 backdrop-blur-md flex flex-col items-center justify-center p-8 space-y-6 fade-in">
+                 <h2 class="text-6xl font-black text-[var(--text-primary)]">ПАУЗА</h2>
+                 <div class="w-full pt-8 space-y-4">
+                     <button id="resumeButton" class="w-full bg-[var(--accent-strong)] text-white font-bold py-4 rounded-2xl text-xl shadow-lg btn-primary">Продолжить</button>
+                     <button id="restartButtonPause" class="w-full bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-bold py-4 rounded-2xl text-xl shadow-md btn-primary">Начать заново</button>
+                     <button id="mainMenuButtonPause" class="w-full bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-bold py-4 rounded-2xl text-xl shadow-md btn-primary">Главное меню</button>
+                 </div>
+            </div>
+
+            <!-- Экран конца игры -->
+            <div id="gameOverScreen" class="hidden absolute inset-0 bg-red-800/80 backdrop-blur-md flex flex-col items-center justify-center p-8 space-y-4 fade-in">
+                 <h2 class="text-6xl font-black text-white">КОНЕЦ ИГРЫ</h2>
+                 <div class="text-center bg-black/30 rounded-2xl p-6 w-full">
+                     <p class="text-xl text-gray-200">Ваш счет</p>
+                     <p id="finalScore" class="text-7xl font-bold text-white">0</p>
+                     <p class="text-xl text-gray-200 mt-4">Лучший счет</p>
+                     <p id="bestScore" class="text-4xl font-bold text-[var(--accent)]">0</p>
+                 </div>
+                 <div class="w-full pt-6 space-y-4">
+                      <button id="restartButton" class="w-full bg-[var(--accent-strong)] text-white font-bold py-4 rounded-2xl text-xl shadow-lg btn-primary">Играть снова</button>
+                      <button id="mainMenuButton" class="w-full bg-[var(--bg-tertiary)] text-white font-bold py-4 rounded-2xl text-xl shadow-md btn-primary">Главное меню</button>
+                 </div>
+            </div>
+            
+            <!-- Общие модальные окна -->
+            <div id="modalContainer" class="hidden absolute inset-0 bg-[var(--bg-primary)] bg-opacity-90 backdrop-blur-md flex items-center justify-center p-4 fade-in">
+                <div id="modalContent" class="bg-[var(--bg-secondary)] rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col">
+                    <h3 id="modalTitle" class="text-3xl font-bold text-[var(--text-primary)] p-6 border-b border-[var(--bg-tertiary)]"></h3>
+                    <div id="modalBody" class="p-6 text-[var(--text-secondary)] space-y-4 overflow-y-auto modal-content"></div>
+                    <div class="p-4 border-t border-[var(--bg-tertiary)]">
+                        <button id="modalCloseButton" class="w-full bg-[var(--accent-strong)] text-white font-bold py-3 rounded-xl text-lg btn-primary">Закрыть</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // --- ИНИЦИАЛИЗАЦИЯ ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const gameContainer = document.getElementById('gameContainer');
+
+    // UI Элементы
+    const mainMenu = document.getElementById('mainMenu');
+    const modeSelectionMenu = document.getElementById('modeSelectionMenu');
+    const pauseMenu = document.getElementById('pauseMenu');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const gameUI = document.getElementById('gameUI');
+    const modalContainer = document.getElementById('modalContainer');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const modalCloseButton = document.getElementById('modalCloseButton');
+    const playButton = document.getElementById('playButton');
+    const backToMenuButton = document.getElementById('backToMenuButton');
+    const rulesButton = document.getElementById('rulesButton');
+    const statsButton = document.getElementById('statsButton');
+    const resumeButton = document.getElementById('resumeButton');
+    const restartButton = document.getElementById('restartButton');
+    const restartButtonPause = document.getElementById('restartButtonPause');
+    const mainMenuButton = document.getElementById('mainMenuButton');
+    const mainMenuButtonPause = document.getElementById('mainMenuButtonPause');
+    const pauseButton = document.getElementById('pauseButton');
+    const soundToggle = document.getElementById('soundToggle');
+    const soundSlider = document.getElementById('soundSlider');
+    const finalScoreEl = document.getElementById('finalScore');
+    const bestScoreEl = document.getElementById('bestScore');
+    const scoreCountEl = document.getElementById('scoreCount');
+    const ballCountEl = document.getElementById('ballCount');
+
+    let width, height, grid_size, brick_gap, top_bar_height;
+
+    // --- СОСТОЯНИЕ ИГРЫ ---
+    let gameState = 'mainMenu';
+    let currentMode = 'classic';
+    const SHAPES = ['square', 'triangle', 'circle', 'hexagon'];
+    let score = 0;
+    let bricks = [];
+    let balls = [];
+    let powerups = [];
+    let particles = [];
+    let player = { ballCount: 1, x: 0, y: 0, isAiming: false, aimAngle: -Math.PI / 2 };
+    let shooting = { inProgress: false, ballsToShoot: 0, ballsShot: 0, targetX: 0, interval: null };
+    let stats = {};
+    let isMuted = false;
+    let lastTime = 0;
+    let isVK = false;
+
+    // --- НАСТРОЙКИ ИГРЫ ---
+    const COLS = 8;
+    const BALL_RADIUS = 7;
+    const BALL_SPEED = 900; // Speed in pixels per second
+    const POWERUP_RADIUS = 11;
+    const SHOOT_INTERVAL = 60;
+    const STATS_VK_KEY = 'BrickBallMasterpieceStats_v8';
+    const SVG_SOUND_ON = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23111827'%3E%3Cpath d='M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 001.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.66 1.905H6.44l4.5 4.5c.945.945 2.56.276 2.56-1.06V4.06zM18.584 5.106a.75.75 0 011.06 0c3.808 3.807 3.808 9.98 0 13.788a.75.75 0 11-1.06-1.06 8.25 8.25 0 000-11.668.75.75 0 010-1.06z'/%3E%3Cpath d='M15.932 7.757a.75.75 0 011.061 0 6 6 0 010 8.486.75.75 0 01-1.06-1.061 4.5 4.5 0 000-6.364.75.75 0 010-1.06z'/%3E%3C/svg%3E`;
+    const SVG_SOUND_OFF = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23111827'%3E%3Cpath d='M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 001.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.66 1.905H6.44l4.5 4.5c.945.945 2.56.276 2.56-1.06V4.06zM17.78 9.22a.75.75 0 10-1.06 1.06L18.44 12l-1.72 1.72a.75.75 0 101.06 1.06l1.72-1.72 1.72 1.72a.75.75 0 101.06-1.06L20.56 12l1.72-1.72a.75.75 0 10-1.06-1.06l-1.72 1.72-1.72-1.72z'/%3E%3C/svg%3E`;
+
+    // --- АУДИО ДВИЖОК ---
+    let audioCtx;
+    let audioInitialized = false;
+
+    function initAudio() {
+        if (audioInitialized || (window.AudioContext === undefined && window.webkitAudioContext === undefined)) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        audioInitialized = true;
+    }
+
+    function playSound(type) {
+        if (!audioInitialized || isMuted) return;
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+        gain.gain.setValueAtTime(0.5, now);
+        switch(type) {
+            case 'hit': osc.type = 'sine'; osc.frequency.setValueAtTime(440, now); osc.frequency.linearRampToValueAtTime(220, now + 0.1); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1); break;
+            case 'break': osc.type = 'triangle'; osc.frequency.setValueAtTime(200, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.2); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2); break;
+            case 'wallHit': osc.type = 'square'; gain.gain.setValueAtTime(0.15, now); osc.frequency.setValueAtTime(880, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1); break;
+            case 'powerup': osc.type = 'sawtooth'; osc.frequency.setValueAtTime(523.25, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3); osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.3); break;
+            case 'shoot': osc.type = 'sine'; gain.gain.setValueAtTime(0.3, now); osc.frequency.setValueAtTime(600, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1); break;
+            case 'gameOver': osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(50, now + 1); gain.gain.exponentialRampToValueAtTime(0.001, now + 1); break;
+            case 'click': osc.type = 'sine'; gain.gain.setValueAtTime(0.3, now); osc.frequency.setValueAtTime(700, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05); break;
+        }
+        osc.start(now);
+        osc.stop(now + 1);
+    }
+
+    // --- ИНТЕГРАЦИЯ VK BRIDGE ---
+    async function initVK() {
+        try {
+            await vkBridge.send('VKWebAppInit');
+            isVK = true;
+            console.log('VK Bridge Initialized');
+            vkBridge.send("VKWebAppShowBannerAd", { banner_location: 'bottom' }).catch(e => console.error("Banner Ad Error:", e));
+        } catch (error) {
+            console.error('VK Bridge init failed:', error);
+            isVK = false;
+        }
+        await loadSettings(); // Load settings after VK init
+    }
+
+    // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
+    const getCssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+    function getDefaultStats() {
+        return { bestScore: 0, gamesPlayed: 0, bricksDestroyed: 0, ballsCollected: 0, maxBalls: 1 };
+    }
+
+    async function loadSettings() {
+        let loadedData = null;
+        if (isVK) {
+            try {
+                const data = await vkBridge.send('VKWebAppStorageGet', { keys: [STATS_VK_KEY] });
+                if (data.keys[0].value) {
+                    loadedData = data.keys[0].value;
+                }
+            } catch (e) { console.error('VK Storage load failed:', e); }
+        }
+        if (!loadedData) {
+            loadedData = localStorage.getItem(STATS_VK_KEY);
+        }
+        if (loadedData) {
+            stats = JSON.parse(loadedData);
+        } else {
+            stats = { classic: getDefaultStats(), kaleidoscope: getDefaultStats(), chaos: getDefaultStats() };
+        }
+        ['classic', 'kaleidoscope', 'chaos'].forEach(mode => { if (!stats[mode]) stats[mode] = getDefaultStats(); });
+        
+        isMuted = localStorage.getItem('brickBallMuted_v8') === 'true';
+        soundToggle.checked = !isMuted;
+        updateSoundIcon();
+    }
+
+    async function saveSettings() {
+        const dataString = JSON.stringify(stats);
+        localStorage.setItem(STATS_VK_KEY, dataString);
+        localStorage.setItem('brickBallMuted_v8', isMuted);
+        if (isVK) {
+            try {
+                await vkBridge.send('VKWebAppStorageSet', { key: STATS_VK_KEY, value: dataString });
+            } catch (e) { console.error('VK Storage save failed:', e); }
+        }
+    }
+
+    function setGameState(newState) {
+        gameState = newState;
+        updateUI();
+    }
+
+    function updateUI() {
+        mainMenu.classList.toggle('hidden', gameState !== 'mainMenu');
+        modeSelectionMenu.classList.toggle('hidden', gameState !== 'modeSelection');
+        pauseMenu.classList.toggle('hidden', gameState !== 'paused');
+        gameOverScreen.classList.toggle('hidden', gameState !== 'gameOver');
+        const isPlaying = gameState === 'playing' || gameState === 'paused';
+        gameUI.style.opacity = isPlaying ? '1' : '0';
+        pauseButton.style.display = gameState === 'playing' ? 'flex' : 'none';
+        modalContainer.classList.add('hidden');
+    }
+
+    function resizeCanvas() {
+        const wrapper = document.getElementById('canvasWrapper');
+        const rect = wrapper.getBoundingClientRect();
+        width = canvas.width = rect.width;
+        height = canvas.height = rect.height;
+        grid_size = Math.floor(width / COLS);
+        brick_gap = grid_size * 0.05;
+        top_bar_height = grid_size * 1.2;
+        player.x = width / 2;
+        player.y = height - grid_size * 2;
+    }
+
+    // --- ИГРОВАЯ ЛОГИКА ---
+    function resetGame() {
+        score = 0;
+        player.ballCount = 1;
+        bricks = []; balls = []; powerups = []; particles = [];
+        player.x = width / 2;
+        player.y = height - grid_size * 2;
+        shooting.inProgress = false;
+        for(let i=0; i<3; i++) generateNewRow(true);
+    }
+    
+    function startGame(mode) {
+        initAudio();
+        playSound('click');
+        currentMode = mode;
+        resetGame();
+        stats[currentMode].gamesPlayed++;
+        setGameState('playing');
+    }
+
+    function generateNewRow(isInitial = false) {
+        if (!isInitial) score++;
+        const health = score + 1;
+        const brickCount = 2 + Math.floor(Math.random() * (COLS - 3));
+        let positions = Array(COLS).fill(false);
+        
+        bricks.forEach(brick => brick.targetY += grid_size);
+        powerups.forEach(powerup => powerup.targetY += grid_size);
+
+        for (let i = 0; i < brickCount; i++) {
+            let pos;
+            do { pos = Math.floor(Math.random() * COLS); } while (positions[pos]);
+            positions[pos] = true;
+            bricks.push(createBrick(pos, 0, health));
+        }
+        
+        if (Math.random() < 0.25) {
+            let pos;
+            do { pos = Math.floor(Math.random() * COLS); } while (positions[pos]);
+            positions[pos] = true;
+            powerups.push(createPowerup(pos, 0));
+        }
+        
+        bricks.forEach(brick => {
+            if (brick.y + grid_size > player.y - grid_size / 2) {
+                setGameState('gameOver');
+                handleGameOver();
+            }
+        });
+    }
+    
+    function createBrick(col, row, health) {
+        const size = grid_size - brick_gap * 2;
+        const x = col * grid_size + grid_size / 2;
+        const y = row * grid_size + top_bar_height + grid_size / 2;
+        let shape = 'square';
+        switch(currentMode) {
+            case 'classic': shape = 'square'; break;
+            case 'kaleidoscope': shape = SHAPES[score % SHAPES.length]; break;
+            case 'chaos': shape = SHAPES[Math.floor(Math.random() * SHAPES.length)]; break;
+        }
+        const color = getBrickColor(health);
+        return { x, y: y - grid_size, targetY: y, size, health, color, shake: 0, rotation: Math.random() * Math.PI, shape };
+    }
+
+    function createPowerup(col, row) {
+        const x = col * grid_size + grid_size / 2;
+        const y = row * grid_size + top_bar_height + grid_size / 2;
+        return { x, y: y - grid_size, targetY: y, radius: POWERUP_RADIUS, angle: 0 };
+    }
+    
+    function createBall(x, y, angle) {
+        return { x, y, radius: BALL_RADIUS, dx: Math.cos(angle) * BALL_SPEED, dy: Math.sin(angle) * BALL_SPEED };
+    }
+
+    function createParticles(x, y, color, count) {
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 5 + 1;
+            particles.push({ x, y, dx: Math.cos(angle) * speed, dy: Math.sin(angle) * speed, radius: Math.random() * 2 + 1, life: 40, color });
+        }
+    }
+
+    function shoot() {
+        if (shooting.inProgress) return;
+        playSound('shoot');
+        shooting.inProgress = true;
+        shooting.ballsToShoot = player.ballCount;
+        shooting.ballsShot = 0;
+        shooting.targetX = player.x;
+
+        shooting.interval = setInterval(() => {
+            if (shooting.ballsShot < shooting.ballsToShoot) {
+                balls.push(createBall(shooting.targetX, player.y, player.aimAngle));
+                shooting.ballsShot++;
+            } else {
+                clearInterval(shooting.interval);
+                shooting.interval = null;
+            }
+        }, SHOOT_INTERVAL);
+    }
+    
+    function handleGameOver() {
+        playSound('gameOver');
+        const modeStats = stats[currentMode];
+        if (score > modeStats.bestScore) modeStats.bestScore = score;
+        if (player.ballCount > modeStats.maxBalls) modeStats.maxBalls = player.ballCount;
+        saveSettings();
+        finalScoreEl.textContent = score;
+        bestScoreEl.textContent = modeStats.bestScore;
+        if (isVK) {
+            vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'interstitial' })
+                .catch(e => console.error("Interstitial Ad Error:", e));
+        }
+    }
+    
+    function handleBallBrickCollision(ball, brick) {
+        brick.health--;
+        brick.shake = 15;
+        playSound(brick.health > 0 ? 'hit' : 'break');
+        
+        if (brick.shape === 'square') {
+            const dx = ball.x - brick.x;
+            const dy = ball.y - brick.y;
+            const halfSize = brick.size / 2;
+            const overlapX = halfSize + ball.radius - Math.abs(dx);
+            const overlapY = halfSize + ball.radius - Math.abs(dy);
+
+            if (overlapX > 0 && overlapY > 0) {
+                if (overlapX < overlapY) {
+                    ball.dx *= -1;
+                    ball.x += (dx > 0 ? overlapX : -overlapX);
+                } else {
+                    ball.dy *= -1;
+                    ball.y += (dy > 0 ? overlapY : -overlapY);
+                }
+            }
+        } else {
+            const dx = ball.x - brick.x;
+            const dy = ball.y - brick.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const normX = dx / dist;
+            const normY = dy / dist;
+            const dotProduct = ball.dx * normX + ball.dy * normY;
+            
+            ball.dx -= 2 * dotProduct * normX;
+            ball.dy -= 2 * dotProduct * normY;
+        }
+
+        createParticles(ball.x, ball.y, 'rgba(255,255,255,0.7)', 5);
+    }
+
+    function update(dt) {
+        if (gameState !== 'playing') return;
+
+        let firstBallLanded = false;
+        let firstLandedX = player.x;
+        
+        [...bricks, ...powerups].forEach(item => { item.y += (item.targetY - item.y) * 0.1; });
+
+        balls.forEach((ball, index) => {
+            ball.x += ball.dx * dt;
+            ball.y += ball.dy * dt;
+
+            if (ball.x - ball.radius < 0 || ball.x + ball.radius > width) {
+                ball.dx *= -1;
+                ball.x = Math.max(ball.radius, Math.min(width - ball.radius, ball.x));
+                playSound('wallHit');
+            }
+            if (ball.y - ball.radius < top_bar_height) {
+                ball.dy *= -1;
+                ball.y = top_bar_height + ball.radius;
+                playSound('wallHit');
+            }
+
+            if (ball.y > height) {
+                if (!firstBallLanded) { firstBallLanded = true; firstLandedX = ball.x; }
+                balls.splice(index, 1);
+            }
+        });
+
+        for (const ball of balls) {
+            for (const brick of bricks) {
+                if (Math.hypot(ball.x - brick.x, ball.y - brick.y) < ball.radius + brick.size / 2) {
+                    handleBallBrickCollision(ball, brick);
+                    break; 
+                }
+            }
+        }
+        
+        bricks = bricks.filter(brick => {
+            if (brick.health <= 0) {
+                stats[currentMode].bricksDestroyed++;
+                createParticles(brick.x, brick.y, brick.color, 30);
+                return false;
+            }
+            return true;
+        });
+
+        powerups = powerups.filter(powerup => {
+            for (const ball of balls) {
+                if (Math.hypot(ball.x - powerup.x, ball.y - powerup.y) < ball.radius + powerup.radius) {
+                    player.ballCount++;
+                    stats[currentMode].ballsCollected++;
+                    playSound('powerup');
+                    createParticles(powerup.x, powerup.y, getCssVar('--success'), 20);
+                    return false;
+                }
+            }
+            return true;
+        });
+        
+        particles.forEach((p, index) => {
+            p.x += p.dx; p.y += p.dy; p.dx *= 0.98; p.dy *= 0.98; p.life--;
+            if (p.life <= 0) particles.splice(index, 1);
+        });
+
+        bricks.forEach(b => b.shake = Math.max(0, b.shake - 1));
+        powerups.forEach(p => p.angle += 0.05);
+
+        if (shooting.inProgress && balls.length === 0 && shooting.ballsShot === shooting.ballsToShoot) {
+            shooting.inProgress = false;
+            if (firstBallLanded) player.x = Math.max(BALL_RADIUS * 2, Math.min(width - BALL_RADIUS * 2, firstLandedX));
+            generateNewRow();
+        }
+    }
+    
+    const getBrickColor = (health) => {
+        const h = 210 + 120 * (1 - Math.min(health / ((score + 1) * 1.5), 1));
+        const s = 60;
+        const l = 55;
+        return `hsl(${h}, ${s}%, ${l}%)`;
+    }
+
+    function draw() {
+        ctx.fillStyle = getCssVar('--canvas-bg');
+        ctx.fillRect(0, 0, width, height);
+        
+        if (gameState === 'mainMenu' || gameState === 'modeSelection') return;
+
+        scoreCountEl.textContent = score;
+        ballCountEl.textContent = `x${player.ballCount}`;
+
+        bricks.forEach(brick => {
+            const shakeX = (Math.random() - 0.5) * brick.shake * 0.5;
+            const shakeY = (Math.random() - 0.5) * brick.shake * 0.5;
+            ctx.save();
+            ctx.translate(brick.x + shakeX, brick.y + shakeY);
+            ctx.rotate(brick.shape === 'square' ? 0 : brick.rotation);
+            ctx.fillStyle = brick.color;
+            ctx.strokeStyle = getCssVar('--brick-stroke');
+            ctx.lineWidth = 3;
+            
+            drawShape(ctx, brick.shape, brick.size);
+
+            ctx.restore();
+            ctx.fillStyle = getCssVar('--text-primary');
+            ctx.font = `bold ${brick.size * 0.3}px Inter`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(brick.health, brick.x + shakeX, brick.y + shakeY);
+        });
+
+        powerups.forEach(powerup => {
+            ctx.save(); ctx.translate(powerup.x, powerup.y);
+            ctx.fillStyle = getCssVar('--success');
+            ctx.beginPath(); ctx.arc(0, 0, powerup.radius, 0, Math.PI * 2); ctx.fill();
+            ctx.rotate(powerup.angle);
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.beginPath(); ctx.arc(0, 0, powerup.radius * 0.8, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+            ctx.fillStyle = 'white'; ctx.font = `bold ${powerup.radius * 1.2}px Inter`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('+', powerup.x, powerup.y + 1);
+        });
+        
+        balls.forEach(ball => {
+            ctx.fillStyle = getCssVar('--text-primary');
+            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); ctx.fill();
+        });
+
+        particles.forEach(p => {
+            ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 40;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
+        });
+        ctx.globalAlpha = 1.0;
+
+        if (!shooting.inProgress && gameState === 'playing') {
+            ctx.fillStyle = getCssVar('--text-primary');
+            ctx.beginPath(); ctx.arc(player.x, player.y, BALL_RADIUS + 2, 0, Math.PI * 2); ctx.fill();
+            if (player.isAiming) drawAimLine();
+        }
+        
+        ctx.fillStyle = getCssVar('--danger'); ctx.globalAlpha = 0.5;
+        ctx.fillRect(0, player.y - grid_size/2, width, 3);
+        ctx.globalAlpha = 1.0;
+    }
+
+    function drawShape(context, shape, size) {
+        const s = size / 2;
+        context.beginPath();
+        switch(shape) {
+            case 'square': context.rect(-s, -s, size, size); break;
+            case 'circle': context.arc(0, 0, s, 0, Math.PI * 2); break;
+            case 'hexagon': for (let i = 0; i < 6; i++) context.lineTo(s * Math.cos(i * Math.PI / 3), s * Math.sin(i * Math.PI / 3)); break;
+            case 'triangle': for (let i = 0; i < 3; i++) context.lineTo(s * Math.cos(i * 2 * Math.PI / 3 - Math.PI/2), s * Math.sin(i * 2 * Math.PI / 3 - Math.PI/2)); break;
+        }
+        context.closePath();
+        context.fill(); context.stroke();
+    }
+    
+    function raycast(x, y, angle) {
+        let rayX = x, rayY = y;
+        const step = 5;
+        for (let i = 0; i < 200; i++) {
+            rayX += Math.cos(angle) * step;
+            rayY += Math.sin(angle) * step;
+            if (rayX < 0 || rayX > width || rayY < top_bar_height) return { x: rayX, y: rayY };
+            for (const brick of bricks) {
+                if (Math.hypot(rayX - brick.x, rayY - brick.y) < brick.size / 2) return { x: rayX, y: rayY };
+            }
+        }
+        return { x: rayX, y: rayY };
+    }
+
+    function drawAimLine() {
+        const endPoint = raycast(player.x, player.y, player.aimAngle);
+        ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(endPoint.x, endPoint.y);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ctx.lineWidth = 3;
+        ctx.setLineDash([8, 8]); ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    function mainLoop(currentTime) {
+        if (!lastTime) lastTime = currentTime;
+        const dt = (currentTime - lastTime) / 1000;
+        lastTime = currentTime;
+        
+        update(dt);
+        draw();
+        
+        requestAnimationFrame(mainLoop);
+    }
+
+    // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
+    function getEventCoords(e) {
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches ? e.touches[0] : e;
+        return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+    }
+    
+    function handlePointerDown(e) { if (gameState === 'playing' && !shooting.inProgress) player.isAiming = true; }
+    function handlePointerMove(e) {
+        if (!player.isAiming) return;
+        const coords = getEventCoords(e);
+        const angle = Math.atan2(coords.y - player.y, coords.x - player.x);
+        player.aimAngle = Math.max(-Math.PI + 0.1, Math.min(-0.1, angle));
+    }
+    function handlePointerUp() { if (player.isAiming) { player.isAiming = false; shoot(); } }
+    
+    function showModal(type) {
+        playSound('click');
+        if (type === 'rules') {
+            modalTitle.textContent = 'Правила Игры';
+            modalBody.innerHTML = `
+                <div class="flex items-center space-x-4"><div class="w-16 h-12 flex-shrink-0"><canvas id="rule-brick-canvas" class="w-full h-full"></canvas></div><div><strong class="text-[var(--text-primary)]">ФИГУРЫ:</strong> Уничтожайте фигуры. Число на фигуре — её прочность.</div></div>
+                <div class="flex items-center space-x-4"><div class="w-16 h-12 flex-shrink-0"><canvas id="rule-powerup-canvas" class="w-full h-full"></canvas></div><div><strong class="text-[var(--text-primary)]">БОНУСЫ:</strong> Собирайте зеленые круги, чтобы увеличить количество шаров для следующего выстрела.</div></div>
+                <div class="flex items-center space-x-4"><div class="w-16 h-12 flex-shrink-0"><canvas id="rule-aim-canvas" class="w-full h-full"></canvas></div><div><strong class="text-[var(--text-primary)]">УПРАВЛЕНИЕ:</strong> Нажмите и потяните, чтобы прицелиться. Отпустите для выстрела.</div></div>
+            `;
+            setTimeout(() => {
+                const brickCanvas = document.getElementById('rule-brick-canvas');
+                if (brickCanvas) {
+                    const ruleCtx = brickCanvas.getContext('2d');
+                    brickCanvas.width = brickCanvas.offsetWidth * 2;
+                    brickCanvas.height = brickCanvas.offsetHeight * 2;
+                    ruleCtx.scale(2,2);
+                    ruleCtx.translate(brickCanvas.offsetWidth/2, brickCanvas.offsetHeight/2);
+                    ruleCtx.fillStyle = getBrickColor(10);
+                    ruleCtx.strokeStyle = getCssVar('--brick-stroke');
+                    ruleCtx.lineWidth = 3;
+                    drawShape(ruleCtx, 'square', 40);
+                    ruleCtx.fillStyle = getCssVar('--text-primary');
+                    ruleCtx.font = `bold 12px Inter`;
+                    ruleCtx.textAlign = 'center'; ruleCtx.textBaseline = 'middle';
+                    ruleCtx.fillText('10', 0, 0);
+                }
+                const powerupCanvas = document.getElementById('rule-powerup-canvas');
+                 if (powerupCanvas) {
+                    const ruleCtx = powerupCanvas.getContext('2d');
+                    powerupCanvas.width = powerupCanvas.offsetWidth * 2;
+                    powerupCanvas.height = powerupCanvas.offsetHeight * 2;
+                    ruleCtx.scale(2,2);
+                    ruleCtx.translate(powerupCanvas.offsetWidth/2, powerupCanvas.offsetHeight/2);
+                    ruleCtx.fillStyle = getCssVar('--success');
+                    ruleCtx.beginPath(); ruleCtx.arc(0, 0, 15, 0, Math.PI * 2); ruleCtx.fill();
+                    ruleCtx.fillStyle = 'white'; ruleCtx.font = `bold 16px Inter`;
+                    ruleCtx.textAlign = 'center'; ruleCtx.textBaseline = 'middle';
+                    ruleCtx.fillText('+', 0, 1);
+                }
+                const aimCanvas = document.getElementById('rule-aim-canvas');
+                 if (aimCanvas) {
+                    const ruleCtx = aimCanvas.getContext('2d');
+                    aimCanvas.width = aimCanvas.offsetWidth * 2;
+                    aimCanvas.height = aimCanvas.offsetHeight * 2;
+                    ruleCtx.scale(2,2);
+                    ruleCtx.fillStyle = getCssVar('--text-primary');
+                    ruleCtx.beginPath(); ruleCtx.arc(aimCanvas.offsetWidth/2, aimCanvas.offsetHeight - 10, 10, 0, Math.PI*2); ruleCtx.fill();
+                    ruleCtx.beginPath();
+                    ruleCtx.moveTo(aimCanvas.offsetWidth/2, aimCanvas.offsetHeight - 10);
+                    ruleCtx.lineTo(10, 10);
+                    ruleCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ruleCtx.lineWidth = 3;
+                    ruleCtx.setLineDash([5, 5]); ruleCtx.stroke();
+                }
+            }, 0);
+
+        } else if (type === 'stats') {
+            modalTitle.textContent = 'Статистика';
+            const statModes = { classic: 'Классика', kaleidoscope: 'Калейдоскоп', chaos: 'Хаос' };
+            let tabsHTML = '<div class="flex border-b border-[var(--bg-tertiary)]">';
+            for (const mode in statModes) {
+                tabsHTML += `<button class="stat-tab-btn flex-1 py-2 text-center" data-mode="${mode}">${statModes[mode]}</button>`;
+            }
+            tabsHTML += '</div>';
+            modalBody.innerHTML = tabsHTML + '<div id="statContent" class="mt-4 space-y-3"></div>';
+            
+            document.querySelectorAll('.stat-tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    playSound('click');
+                    updateStatContent(e.target.dataset.mode);
+                });
+            });
+            updateStatContent('classic');
+        }
+        modalContainer.classList.remove('hidden');
+    }
+    
+    function updateStatContent(mode) {
+        document.querySelectorAll('.stat-tab-btn').forEach(btn => {
+            btn.style.borderBottom = btn.dataset.mode === mode ? '2px solid var(--accent)' : '2px solid transparent';
+            btn.style.color = btn.dataset.mode === mode ? 'var(--text-primary)' : 'var(--text-secondary)';
+        });
+        const s = stats[mode];
+        document.getElementById('statContent').innerHTML = `
+            <div class="flex justify-between items-center bg-[var(--bg-primary)] p-4 rounded-xl"><span class="font-semibold">Лучший счет:</span><span class="text-2xl font-bold text-[var(--accent)]">${s.bestScore}</span></div>
+            <div class="flex justify-between items-center bg-[var(--bg-primary)] p-4 rounded-xl"><span class="font-semibold">Всего игр сыграно:</span><span class="text-2xl font-bold text-[var(--text-primary)]">${s.gamesPlayed}</span></div>
+            <div class="flex justify-between items-center bg-[var(--bg-primary)] p-4 rounded-xl"><span class="font-semibold">Фигур уничтожено:</span><span class="text-2xl font-bold text-[var(--text-primary)]">${s.bricksDestroyed}</span></div>
+            <div class="flex justify-between items-center bg-[var(--bg-primary)] p-4 rounded-xl"><span class="font-semibold">Шаров собрано:</span><span class="text-2xl font-bold text-[var(--text-primary)]">${s.ballsCollected}</span></div>
+            <div class="flex justify-between items-center bg-[var(--bg-primary)] p-4 rounded-xl"><span class="font-semibold">Макс. шаров за выстрел:</span><span class="text-2xl font-bold text-[var(--text-primary)]">${s.maxBalls}</span></div>
+        `;
+    }
+
+    function updateSoundIcon() {
+        const sliderBefore = document.querySelector('#soundSlider::before') || document.createElement('style');
+        document.head.appendChild(sliderBefore);
+        const icon = soundToggle.checked ? SVG_SOUND_ON : SVG_SOUND_OFF;
+        sliderBefore.innerHTML = `#soundSlider::before { background-image: url("${icon}"); }`;
+    }
+
+    // --- НАЗНАЧЕНИЕ СОБЫТИЙ ---
+    window.addEventListener('resize', resizeCanvas, { passive: true });
+    canvas.addEventListener('mousedown', handlePointerDown);
+    canvas.addEventListener('mousemove', handlePointerMove);
+    canvas.addEventListener('mouseup', handlePointerUp);
+    canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
+    canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
+    canvas.addEventListener('touchend', handlePointerUp);
+    
+    playButton.addEventListener('click', () => { playSound('click'); setGameState('modeSelection'); });
+    backToMenuButton.addEventListener('click', () => { playSound('click'); setGameState('mainMenu'); });
+    document.querySelectorAll('.mode-select-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => startGame(e.target.dataset.mode));
+    });
+
+    pauseButton.addEventListener('click', () => { playSound('click'); setGameState('paused'); });
+    resumeButton.addEventListener('click', () => { playSound('click'); setGameState('playing'); });
+    [restartButton, restartButtonPause].forEach(btn => btn.addEventListener('click', () => startGame(currentMode)));
+    [mainMenuButton, mainMenuButtonPause].forEach(btn => btn.addEventListener('click', () => { playSound('click'); setGameState('mainMenu'); }));
+    
+    rulesButton.addEventListener('click', () => showModal('rules'));
+    statsButton.addEventListener('click', () => showModal('stats'));
+    modalCloseButton.addEventListener('click', () => { playSound('click'); modalContainer.classList.add('hidden'); });
+
+    soundToggle.addEventListener('change', (e) => {
+        isMuted = !e.target.checked;
+        playSound('click');
+        updateSoundIcon();
+        saveSettings();
+    });
+    
+    // --- ЗАПУСК ---
+    initVK().then(() => {
+        resizeCanvas();
+        updateUI();
+        requestAnimationFrame(mainLoop);
+    });
+
+    </script>
+</body>
+</html>
+

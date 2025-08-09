@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
-    <title>Brick Ball Masterpiece v8.0 (VK Release)</title>
+    <title>Brick Ball Masterpiece v9.0 (Final Release)</title>
     <!-- VK Bridge -->
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -25,6 +25,11 @@
             --brick-stroke: #111827;
         }
 
+        html, body {
+            height: 100%;
+            overscroll-behavior-y: contain;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
             overflow: hidden;
@@ -37,7 +42,7 @@
         .modal-content::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 4px; }
         .modal-content::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
-        #gameContainer {
+        #gameWrapper {
             display: flex;
             flex-direction: column;
             height: 100%;
@@ -46,6 +51,7 @@
         #canvasWrapper {
             flex-grow: 1;
             position: relative;
+            min-height: 0; /* Fix for flexbox in some browsers */
         }
 
         #gameCanvas {
@@ -120,8 +126,8 @@
 </head>
 <body class="flex items-center justify-center h-screen select-none">
 
-    <div id="gameWrapper" class="relative shadow-2xl overflow-hidden bg-[var(--bg-secondary)] w-full h-full max-w-[420px] max-h-[900px] aspect-[9/19.5] rounded-[40px] border-8 border-[var(--bg-primary)]">
-        <div id="gameContainer">
+    <div id="appContainer" class="relative shadow-2xl overflow-hidden bg-[var(--bg-secondary)] w-full h-full max-w-[420px] max-h-[900px] aspect-[9/19.5] rounded-[40px] border-8 border-[var(--bg-primary)]">
+        <div id="gameWrapper">
             <div id="canvasWrapper">
                 <canvas id="gameCanvas"></canvas>
             </div>
@@ -222,7 +228,7 @@
     // --- ИНИЦИАЛИЗАЦИЯ ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const gameContainer = document.getElementById('gameContainer');
+    const gameWrapper = document.getElementById('gameWrapper');
 
     // UI Элементы
     const mainMenu = document.getElementById('mainMenu');
@@ -272,10 +278,10 @@
     // --- НАСТРОЙКИ ИГРЫ ---
     const COLS = 8;
     const BALL_RADIUS = 7;
-    const BALL_SPEED = 900; // Speed in pixels per second
+    const BALL_SPEED = 850; // Speed in pixels per second
     const POWERUP_RADIUS = 11;
     const SHOOT_INTERVAL = 60;
-    const STATS_VK_KEY = 'BrickBallMasterpieceStats_v8';
+    const STATS_VK_KEY = 'BrickBallMasterpieceStats_v9';
     const SVG_SOUND_ON = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23111827'%3E%3Cpath d='M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 001.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.66 1.905H6.44l4.5 4.5c.945.945 2.56.276 2.56-1.06V4.06zM18.584 5.106a.75.75 0 011.06 0c3.808 3.807 3.808 9.98 0 13.788a.75.75 0 11-1.06-1.06 8.25 8.25 0 000-11.668.75.75 0 010-1.06z'/%3E%3Cpath d='M15.932 7.757a.75.75 0 011.061 0 6 6 0 010 8.486.75.75 0 01-1.06-1.061 4.5 4.5 0 000-6.364.75.75 0 010-1.06z'/%3E%3C/svg%3E`;
     const SVG_SOUND_OFF = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23111827'%3E%3Cpath d='M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 001.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.66 1.905H6.44l4.5 4.5c.945.945 2.56.276 2.56-1.06V4.06zM17.78 9.22a.75.75 0 10-1.06 1.06L18.44 12l-1.72 1.72a.75.75 0 101.06 1.06l1.72-1.72 1.72 1.72a.75.75 0 101.06-1.06L20.56 12l1.72-1.72a.75.75 0 10-1.06-1.06l-1.72 1.72-1.72-1.72z'/%3E%3C/svg%3E`;
 
@@ -351,7 +357,7 @@
         }
         ['classic', 'kaleidoscope', 'chaos'].forEach(mode => { if (!stats[mode]) stats[mode] = getDefaultStats(); });
         
-        isMuted = localStorage.getItem('brickBallMuted_v8') === 'true';
+        isMuted = localStorage.getItem('brickBallMuted_v9') === 'true';
         soundToggle.checked = !isMuted;
         updateSoundIcon();
     }
@@ -359,7 +365,7 @@
     async function saveSettings() {
         const dataString = JSON.stringify(stats);
         localStorage.setItem(STATS_VK_KEY, dataString);
-        localStorage.setItem('brickBallMuted_v8', isMuted);
+        localStorage.setItem('brickBallMuted_v9', isMuted);
         if (isVK) {
             try {
                 await vkBridge.send('VKWebAppStorageSet', { key: STATS_VK_KEY, value: dataString });
@@ -859,6 +865,7 @@
     canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
     canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
     canvas.addEventListener('touchend', handlePointerUp);
+    document.addEventListener('contextmenu', e => e.preventDefault());
     
     playButton.addEventListener('click', () => { playSound('click'); setGameState('modeSelection'); });
     backToMenuButton.addEventListener('click', () => { playSound('click'); setGameState('mainMenu'); });

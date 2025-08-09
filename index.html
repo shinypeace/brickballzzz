@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
-    <title>Brick Ball Masterpiece v9.0 (Final Release)</title>
+    <title>Brick Ball Masterpiece v10.0 (Final Release)</title>
     <!-- VK Bridge -->
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -60,6 +60,14 @@
             left: 0;
             width: 100%;
             height: 100%;
+        }
+        
+        /* Исправление бага с управлением */
+        #uiScreens {
+            pointer-events: none;
+        }
+        #uiScreens > div {
+            pointer-events: auto;
         }
 
         @keyframes fadeIn {
@@ -155,19 +163,19 @@
             </div>
 
             <!-- Главное меню -->
-            <div id="mainMenu" class="absolute inset-0 bg-[var(--bg-primary)] bg-opacity-90 backdrop-blur-md flex flex-col items-center justify-center p-8 space-y-6 fade-in">
-                <div class="text-center">
-                    <h1 class="text-8xl font-black text-[var(--text-primary)] tracking-tighter" style="text-shadow: 0 4px 15px rgba(0,0,0,0.2);">BRICK</h1>
-                    <h2 class="text-8xl font-black text-[var(--accent)] tracking-tighter -mt-8" style="text-shadow: 0 4px 15px var(--accent-strong);">BALL</h2>
+            <div id="mainMenu" class="absolute inset-0 bg-[var(--bg-primary)] bg-opacity-90 backdrop-blur-md flex flex-col items-center justify-center p-8 fade-in">
+                <div class="flex-grow flex flex-col justify-center items-center text-center">
+                    <h1 class="text-[clamp(3.5rem,20vw,6rem)] font-black text-[var(--text-primary)] tracking-tighter" style="text-shadow: 0 4px 15px rgba(0,0,0,0.2);">BRICK</h1>
+                    <h2 class="text-[clamp(3.5rem,20vw,6rem)] font-black text-[var(--accent)] tracking-tighter -mt-[clamp(1rem,5vw,2rem)]" style="text-shadow: 0 4px 15px var(--accent-strong);">BALL</h2>
                 </div>
-                <div class="w-full pt-10">
-                    <button id="playButton" class="w-full bg-[var(--accent-strong)] text-white font-bold py-5 rounded-2xl text-2xl shadow-lg btn-primary">ИГРАТЬ</button>
+                <div class="w-full max-w-xs flex flex-col gap-4 py-4">
+                    <button id="playButton" class="w-full bg-[var(--accent-strong)] text-white font-bold py-4 rounded-2xl text-xl shadow-lg btn-primary">ИГРАТЬ</button>
+                    <div class="flex w-full space-x-4">
+                        <button id="rulesButton" class="w-1/2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-bold py-3 rounded-2xl text-lg shadow-md btn-primary">Правила</button>
+                        <button id="statsButton" class="w-1/2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-bold py-3 rounded-2xl text-lg shadow-md btn-primary">Статистика</button>
+                    </div>
                 </div>
-                <div class="flex w-full space-x-4">
-                    <button id="rulesButton" class="w-1/2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-bold py-4 rounded-2xl text-lg shadow-md btn-primary">Правила</button>
-                    <button id="statsButton" class="w-1/2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] font-bold py-4 rounded-2xl text-lg shadow-md btn-primary">Статистика</button>
-                </div>
-                <div class="absolute bottom-8 flex items-center space-x-3 text-[var(--text-secondary)]">
+                 <div class="flex-shrink-0 py-4">
                     <label class="sound-switch">
                         <input type="checkbox" id="soundToggle">
                         <span id="soundSlider" class="slider"></span>
